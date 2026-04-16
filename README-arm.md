@@ -1,5 +1,6 @@
 
-> 基于官方: 21ff1056783be2d9927d4f938f890ba46cbc9de9
+> 基于官方: 21ff1056783be2d9927d4f938f890ba46cbc9de9  
+> 参考：https://docs.100ask.net/dshanpi/docs/T113i-Industrial/part4/LVGL-v9.2Porting/  
 
 # 默认 config
 
