@@ -1,0 +1,155 @@
+@PACKAGE_INIT@
+
+include_guard(GLOBAL)
+
+include(CMakeFindDependencyMacro)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBEVDEV REQUIRED IMPORTED_TARGET libevdev)
+
+# ------------------------------------------------------------
+# 安装路径
+# ------------------------------------------------------------
+set_and_check(_LV_PORT_LINUX_INCLUDE_ROOT
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@")
+set_and_check(_LV_PORT_LINUX_INCLUDE_LVGL
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/lvgl")
+
+set_and_check(_LV_PORT_LINUX_CORE_LIB
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@LV_PORT_LINUX_CORE_LIBRARY_FILENAME@")
+set_and_check(_LV_PORT_LINUX_PORT_LIB
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@LV_PORT_LINUX_PORT_LIBRARY_FILENAME@")
+
+# 可选组件：只构造路径，不做 set_and_check
+set(_LV_PORT_LINUX_DEMOS_LIB
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@LV_PORT_LINUX_DEMOS_LIBRARY_FILENAME@")
+set(_LV_PORT_LINUX_EXAMPLES_LIB
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@LV_PORT_LINUX_EXAMPLES_LIBRARY_FILENAME@")
+set(_LV_PORT_LINUX_THORVG_LIB
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@LV_PORT_LINUX_THORVG_LIBRARY_FILENAME@")
+
+set(_LV_PORT_LINUX_IMPORTED_LIB_TYPE "@LV_PORT_LINUX_IMPORTED_LIB_TYPE@")
+set(_LV_PORT_LINUX_CORE_EXTRA_LINK_LIBS "@LV_PORT_LINUX_CORE_EXTRA_LINK_LIBS@")
+set(_LV_PORT_LINUX_BACKEND_EXTRA_LINK_LIBS "@LV_PORT_LINUX_BACKEND_EXTRA_LINK_LIBS@")
+set(_LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS "@LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS@")
+
+# ------------------------------------------------------------
+# helper
+# ------------------------------------------------------------
+function(_lv_port_linux_create_imported_target _target _location _extra_links)
+    if(NOT TARGET ${_target})
+        add_library(${_target} ${_LV_PORT_LINUX_IMPORTED_LIB_TYPE} IMPORTED)
+        set_target_properties(${_target} PROPERTIES
+            IMPORTED_LOCATION "${_location}"
+            INTERFACE_INCLUDE_DIRECTORIES
+                "${_LV_PORT_LINUX_INCLUDE_ROOT};${_LV_PORT_LINUX_INCLUDE_LVGL}"
+            INTERFACE_COMPILE_DEFINITIONS
+                "LV_CONF_INCLUDE_SIMPLE=1"
+        )
+
+        if(NOT "${_extra_links}" STREQUAL "")
+            set_target_properties(${_target} PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${_extra_links}"
+            )
+        endif()
+    endif()
+endfunction()
+
+# ------------------------------------------------------------
+# 核心 target
+# ------------------------------------------------------------
+_lv_port_linux_create_imported_target(
+    lv_port_linux::lvgl
+    "${_LV_PORT_LINUX_CORE_LIB}"
+    "${_LV_PORT_LINUX_CORE_EXTRA_LINK_LIBS}"
+)
+
+set(_LV_PORT_LINUX_BACKEND_LINK_LIBS
+    "lv_port_linux::lvgl"
+)
+if(NOT "${_LV_PORT_LINUX_BACKEND_EXTRA_LINK_LIBS}" STREQUAL "")
+    list(APPEND _LV_PORT_LINUX_BACKEND_LINK_LIBS
+        ${_LV_PORT_LINUX_BACKEND_EXTRA_LINK_LIBS})
+endif()
+
+_lv_port_linux_create_imported_target(
+    lv_port_linux::lvgl_linux
+    "${_LV_PORT_LINUX_PORT_LIB}"
+    "${_LV_PORT_LINUX_BACKEND_LINK_LIBS}"
+)
+
+# ------------------------------------------------------------
+# 可选组件：只根据安装文件是否存在判断
+# ------------------------------------------------------------
+set(lv_port_linux_demos_FOUND FALSE)
+if(EXISTS "${_LV_PORT_LINUX_DEMOS_LIB}")
+    _lv_port_linux_create_imported_target(
+        lv_port_linux::demos
+        "${_LV_PORT_LINUX_DEMOS_LIB}"
+        "lv_port_linux::lvgl;${_LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS}"
+    )
+    set(lv_port_linux_demos_FOUND TRUE)
+endif()
+
+set(lv_port_linux_examples_FOUND FALSE)
+if(EXISTS "${_LV_PORT_LINUX_EXAMPLES_LIB}")
+    _lv_port_linux_create_imported_target(
+        lv_port_linux::examples
+        "${_LV_PORT_LINUX_EXAMPLES_LIB}"
+        "lv_port_linux::lvgl;${_LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS}"
+    )
+    set(lv_port_linux_examples_FOUND TRUE)
+endif()
+
+set(lv_port_linux_thorvg_FOUND FALSE)
+if(EXISTS "${_LV_PORT_LINUX_THORVG_LIB}")
+    _lv_port_linux_create_imported_target(
+        lv_port_linux::thorvg
+        "${_LV_PORT_LINUX_THORVG_LIB}"
+        "${_LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS}"
+    )
+    set(lv_port_linux_thorvg_FOUND TRUE)
+endif()
+
+# ------------------------------------------------------------
+# 稳定核心聚合 target
+# ------------------------------------------------------------
+if(NOT TARGET lv_port_linux::sdk_core)
+    add_library(lv_port_linux::sdk_core INTERFACE IMPORTED)
+
+    set(_LV_PORT_LINUX_SDK_CORE_LINK_LIBS
+        lv_port_linux::lvgl_linux
+        lv_port_linux::lvgl
+        lv_port_linux::lvgl_linux
+    )
+
+    set_target_properties(lv_port_linux::sdk_core PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${_LV_PORT_LINUX_INCLUDE_ROOT};${_LV_PORT_LINUX_INCLUDE_LVGL}"
+        INTERFACE_COMPILE_DEFINITIONS
+            "LV_CONF_INCLUDE_SIMPLE=1"
+        INTERFACE_LINK_LIBRARIES
+            "${_LV_PORT_LINUX_SDK_CORE_LINK_LIBS}"
+    )
+endif()
+
+# ------------------------------------------------------------
+# 组件合法性检查
+# ------------------------------------------------------------
+set(_LV_PORT_LINUX_SUPPORTED_COMPONENTS
+    demos
+    examples
+    thorvg
+)
+
+foreach(_comp IN LISTS lv_port_linux_FIND_COMPONENTS)
+    if(NOT _comp IN_LIST _LV_PORT_LINUX_SUPPORTED_COMPONENTS)
+        set(lv_port_linux_FOUND FALSE)
+        set(lv_port_linux_NOT_FOUND_MESSAGE
+            "lv_port_linux: unsupported component '${_comp}'. "
+            "Supported components are: demos, examples, thorvg."
+        )
+    endif()
+endforeach()
+
+check_required_components(lv_port_linux)

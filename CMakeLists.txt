@@ -1,6 +1,57 @@
 cmake_minimum_required(VERSION 3.11)
 project(lvgl)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+option(LV_PORT_LINUX_INSTALL_CMAKE_PACKAGE
+    "Install lv_port_linux CMake package for downstream projects"
+    ON)
+
+# 你也可以改成从项目版本变量取
+# 这里只给一个明确默认值，避免 version file 生成时报空
+set(LV_PORT_LINUX_PACKAGE_VERSION "9.4.0")
+
+# ============================================================
+# lv_port_linux package metadata
+# 这部分变量会被 configure_package_config_file() 写入
+# cmake/lv_port_linuxConfig.cmake.in
+# ============================================================
+if(BUILD_SHARED_LIBS)
+    set(LV_PORT_LINUX_IMPORTED_LIB_TYPE SHARED)
+
+    set(LV_PORT_LINUX_CORE_LIBRARY_FILENAME
+        "${CMAKE_SHARED_LIBRARY_PREFIX}lvgl${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_PORT_LIBRARY_FILENAME
+        "${CMAKE_SHARED_LIBRARY_PREFIX}lvgl_linux${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_DEMOS_LIBRARY_FILENAME
+        "${CMAKE_SHARED_LIBRARY_PREFIX}lvgl_demos${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_EXAMPLES_LIBRARY_FILENAME
+        "${CMAKE_SHARED_LIBRARY_PREFIX}lvgl_examples${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_THORVG_LIBRARY_FILENAME
+        "${CMAKE_SHARED_LIBRARY_PREFIX}lvgl_thorvg${CMAKE_SHARED_LIBRARY_SUFFIX}")
+else()
+    set(LV_PORT_LINUX_IMPORTED_LIB_TYPE STATIC)
+
+    set(LV_PORT_LINUX_CORE_LIBRARY_FILENAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}lvgl${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_PORT_LIBRARY_FILENAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}lvgl_linux${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_DEMOS_LIBRARY_FILENAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}lvgl_demos${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_EXAMPLES_LIBRARY_FILENAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}lvgl_examples${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LV_PORT_LINUX_THORVG_LIBRARY_FILENAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}lvgl_thorvg${CMAKE_STATIC_LIBRARY_SUFFIX}")
+endif()
+
+set(LV_PORT_LINUX_CORE_EXTRA_LINK_LIBS "stdc++")
+set(LV_PORT_LINUX_BACKEND_EXTRA_LINK_LIBS
+    "PkgConfig::LIBEVDEV;m;pthread;rt;stdc++")
+set(LV_PORT_LINUX_OPTIONAL_EXTRA_LINK_LIBS "stdc++")
+
+########################################################################
+
 option(WERROR "Treat warnings as errors for LVGL targets" OFF)
 option(ASAN "Enable Sanitizer Options" OFF)
 
@@ -417,17 +468,70 @@ if(WERROR)
     target_compile_options(lvgl_linux PRIVATE -Werror)
 endif()
 
-
-# Install the lvgl_linux library and its headers
-install(DIRECTORY src/lib/
-    DESTINATION include/lvgl
+# ------------------------------------------------------------
+# 安装 port 层公开头文件
+#
+# 这里直接安装 src/lib 下的 *.h 到 include/lvgl，
+# 这样外部应用可以包含：
+#   <lvgl/driver_backends.h>
+#   <lvgl/simulator_settings.h>
+# 等头文件
+# ------------------------------------------------------------
+install(
+    DIRECTORY src/lib/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lvgl
     FILES_MATCHING
-    PATTERN "backends*" EXCLUDE
-    PATTERN "*.h")
-
-install(TARGETS lvgl_linux
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    PATTERN "*.h"
 )
+
+
+# ------------------------------------------------------------
+# 安装 port 层公开头文件
+# 这些头文件给下游外部应用使用，例如：
+#   <lvgl/driver_backends.h>
+#   <lvgl/simulator_settings.h>
+# ------------------------------------------------------------
+install(
+    DIRECTORY src/lib/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lvgl
+    FILES_MATCHING
+    PATTERN "*.h"
+)
+
+# ------------------------------------------------------------
+# 安装 lvgl_linux
+# lvgl / lvgl_demos / lvgl_examples / lvgl_thorvg 的安装
+# 由 add_subdirectory(lvgl) 内部自己的 install 逻辑负责
+# ------------------------------------------------------------
+install(
+    TARGETS lvgl_linux
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# ------------------------------------------------------------
+# 安装 lv_port_linux CMake package
+# ------------------------------------------------------------
+if(LV_PORT_LINUX_INSTALL_CMAKE_PACKAGE)
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv_port_linuxConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/lv_port_linuxConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lv_port_linux
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/lv_port_linuxConfigVersion.cmake
+        VERSION ${LV_PORT_LINUX_PACKAGE_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(
+        FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/lv_port_linuxConfig.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/lv_port_linuxConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lv_port_linux
+    )
+endif()
 
 add_custom_target(run COMMAND ${EXECUTABLE_OUTPUT_PATH}/lvglsim DEPENDS lvglsim)

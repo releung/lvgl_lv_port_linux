@@ -1,21 +1,25 @@
-# This is used to test the installation process
+cmake_minimum_required(VERSION 3.16)
+project(lvgl_example C CXX)
 
-cmake_minimum_required(VERSION 3.10)
-project(lvgl_example)
-
-set(CMAKE_C_STANDARD 99) # LVGL officially supports C99 and above
-set(CMAKE_CXX_STANDARD 17) #C17
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-
-# Uncomment if the program needs debugging
-set(CMAKE_BUILD_TYPE Debug)
-
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LVGL REQUIRED lvgl)
 
 add_executable(main main.c)
-target_include_directories(main PUBLIC ${LVGL_INCLUDE_DIRS})
-target_link_libraries(main PUBLIC ${LVGL_LIBRARIES} m)
 
-add_custom_target (run COMMAND ${EXECUTABLE_OUTPUT_PATH}/main DEPENDS main)
+find_package(lv_port_linux CONFIG REQUIRED COMPONENTS demos)
+
+target_link_libraries(main PRIVATE
+    lv_port_linux::sdk_core
+    lv_port_linux::demos
+)
+
+set_target_properties(main PROPERTIES
+    LINKER_LANGUAGE CXX
+)
+
+add_custom_target(run
+    COMMAND $<TARGET_FILE:main>
+    DEPENDS main
+)

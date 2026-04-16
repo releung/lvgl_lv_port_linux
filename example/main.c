@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <lvgl.h>
+#include <lvgl/lvgl.h>
 #include <lvgl/demos/lv_demos.h>
 #include <lvgl/driver_backends.h>
 #include <lvgl/simulator_settings.h>

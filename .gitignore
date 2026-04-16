@@ -10,6 +10,7 @@ demo
 *.elf
 /build/
 /bin/
+/example/build
 
 # Linker output
 *.ilk
@@ -61,3 +62,5 @@ dkms.conf
 /.settings/
 .*project
 .deps
+
+
