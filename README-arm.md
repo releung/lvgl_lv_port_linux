@@ -1,4 +1,13 @@
 
+> 基于官方: 21ff1056783be2d9927d4f938f890ba46cbc9de9
+
+# 默认 config
+
+目前默认使用 configs/fbdev.defaults, 也就是在官方的基础上执行了：
+```
+cp configs/fbdev.defaults lv_conf.defaults
+```
+
 # 工具链
 
 修改 toolchain.cmake 路径
